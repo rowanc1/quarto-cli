@@ -113,8 +113,7 @@ local function is_confluence_output()
 end
 
 local function is_dashboard_output()
-  local formatIdentifier = param('format-identifier')
-  return formatIdentifier and formatIdentifier.baseFormat == 'dashboard'
+  return param("format-identifier", {})["base-format"] == "dashboard"
 end
 
 -- check for markdown output
