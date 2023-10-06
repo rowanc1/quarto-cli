@@ -104,6 +104,12 @@ function latexCalloutBoxSimple(title, type, icon, callout)
   local color = latexColorForType(type)
   local colorFrame = latexFrameColorForType(type)
 
+  if title == nil then
+    title = ""
+  else
+    title = pandoc.write(pandoc.Pandoc(title), 'latex')
+  end
+  print(title)
   -- generate options
   local options = {
     breakable = "",
@@ -117,6 +123,23 @@ function latexCalloutBoxSimple(title, type, icon, callout)
     rightrule = borderWidth,
     arc = borderRadius,
   }
+
+  -- Add the titles and contents
+  local calloutContents = pandoc.List({});
+
+  if is_valid_ref_type(refType(callout.attr.identifier)) then
+    local ref = refType(callout.attr.identifier)
+    local crossref_info = crossref.categories.by_ref_type[ref]
+    -- ensure that front matter includes the correct new counter types
+    ensure_callout_counter(ref)
+
+    local delim = ""
+    if title:len() > 0 then
+       delim = pandoc.utils.stringify(titleDelim())
+    end
+    title = crossref_info.prefix .. " \\ref*{" .. callout.attr.identifier .. "}" .. delim .. " " .. title
+    calloutContents:insert(pandoc.RawInline('latex', '\\quartocallout' .. crossref_info.ref_type .. '{' .. callout.attr.identifier .. '} '))
+  end
 
   -- the core latex for the box
   local beginInlines = { pandoc.RawInline('latex', '\\begin{tcolorbox}[enhanced jigsaw, ' .. tColorOptions(options) .. ']\n') }
@@ -136,12 +159,10 @@ function latexCalloutBoxSimple(title, type, icon, callout)
     tprepend(endInlines, {pandoc.RawInline('latex', '\\end{minipage}%')});
   end
 
-  -- Add the titles and contents
-  local calloutContents = pandoc.List({});
-  if title ~= nil then 
-    tprepend(title.content, {pandoc.RawInline('latex', '\\textbf{')})
-    tappend(title.content, {pandoc.RawInline('latex', '}\\vspace{2mm}')})
-    calloutContents:insert(pandoc.Para(title.content))
+  if title:len() > 0 then 
+    -- TODO use a better spacing rule
+    title = '\\vspace{-3mm}\\textbf{' .. title .. '}\\vspace{3mm}'
+    calloutContents:insert(pandoc.RawInline('latex', title))
   end
 
   -- the inlines
