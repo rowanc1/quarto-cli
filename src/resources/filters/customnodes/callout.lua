@@ -101,7 +101,7 @@ _quarto.ast.add_handler({
       appearance = appearance,
       icon = icon,
       type = t,
-      attr = tbl.attr,
+      attr = tbl.attr or pandoc.Attr(),
     }
   end
 })
@@ -607,7 +607,7 @@ end)
 
 function crossref_callouts()
   return {
-    Callout = function(callout)
+    Callout = function(callout, what)
       local type = refType(callout.attr.identifier)
       if type == nil or not is_valid_ref_type(type) then
         return nil
