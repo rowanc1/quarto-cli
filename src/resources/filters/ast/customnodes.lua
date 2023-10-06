@@ -27,6 +27,13 @@ function is_custom_node(node)
   return false
 end
 
+function ensure_custom(node)
+  if pandoc.utils.type(node) == "Block" or pandoc.utils.type(node) == "Inline" then
+    return _quarto.ast.resolve_custom_data(node)
+  end
+  return node
+end
+
 function run_emulated_filter(doc, filter)
   if doc == nil then
     return nil

@@ -5,17 +5,53 @@
 
 local constants = require("modules/constants")
 
-function latexCalloutBoxDefault(title, type, icon) 
+local callout_counters = {}
+
+local function ensure_callout_counter(ref)
+  if callout_counters[ref] ~= nil then
+    return
+  end
+  -- \newcounter{quartocalloutnotno}
+  -- \newcommand{\quartocalloutnot}[1]{\refstepcounter{calloutnoteno}\label{#1}}
+
+  callout_counters[ref] = true
+  local crossref_info = crossref.categories.by_ref_type[ref]
+  local counter_name = 'quartocallout' .. crossref_info.ref_type .. 'no'
+  local counter_command_name = 'quartocallout' .. crossref_info.ref_type
+  local newcounter = '\\newcounter{quartocallout' .. ref .. 'no}'
+  local newcommand = '\\newcommand{\\' .. counter_command_name .. '}[1]{\\refstepcounter{' .. counter_name .. '}\\label{#1}}'
+
+  quarto.doc.include_text('in-header', newcounter)
+  quarto.doc.include_text('in-header', newcommand)
+end
+
+function latexCalloutBoxDefault(title, callout_type, icon, callout) 
 
   -- callout dimensions
   local leftBorderWidth = '.75mm'
   local borderWidth = '.15mm'
   local borderRadius = '.35mm'
   local leftPad = '2mm'
-  local color = latexColorForType(type)
-  local frameColor = latexFrameColorForType(type)
+  local color = latexColorForType(callout_type)
+  local frameColor = latexFrameColorForType(callout_type)
 
-  local iconForType = iconForType(type)
+  local iconForType = iconForType(callout_type)
+
+  local calloutContents = pandoc.List({});
+
+  if is_valid_ref_type(refType(callout.attr.identifier)) then
+    local ref = refType(callout.attr.identifier)
+    local crossref_info = crossref.categories.by_ref_type[ref]
+    -- ensure that front matter includes the correct new counter types
+    ensure_callout_counter(ref)
+
+    local delim = ""
+    if title:len() > 0 then
+       delim = pandoc.utils.stringify(titleDelim())
+    end
+    title = crossref_info.prefix .. " \\ref*{" .. callout.attr.identifier .. "}" .. delim .. " " .. title
+    calloutContents:insert(pandoc.RawInline('latex', '\\quartocallout' .. crossref_info.ref_type .. '{' .. callout.attr.identifier .. '} '))
+  end
 
   -- generate options
   local options = {
@@ -47,7 +83,6 @@ function latexCalloutBoxDefault(title, type, icon)
   local endInlines = { pandoc.RawInline('latex', '\n\\end{tcolorbox}') }
 
   -- Add the titles and contents
-  local calloutContents = pandoc.List({});
 
   -- the inlines
   return { 
@@ -59,7 +94,7 @@ function latexCalloutBoxDefault(title, type, icon)
 end
 
 -- create the tcolorBox
-function latexCalloutBoxSimple(title, type, icon)
+function latexCalloutBoxSimple(title, type, icon, callout)
 
   -- callout dimensions
   local leftBorderWidth = '.75mm'
@@ -200,9 +235,9 @@ function render_latex()
         else
           title = pandoc.write(pandoc.Pandoc(title), 'latex')
         end
-        callout = latexCalloutBoxDefault(title, type, icon)
+        callout = latexCalloutBoxDefault(title, type, icon, node)
       else
-        callout = latexCalloutBoxSimple(title, type, icon)
+        callout = latexCalloutBoxSimple(title, type, icon, node)
       end
       local beginEnvironment = callout.beginInlines
       local endEnvironment = callout.endInlines

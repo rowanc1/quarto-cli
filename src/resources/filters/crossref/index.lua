@@ -195,7 +195,7 @@ function writeFullIndex(indexFile)
       }
     }
     -- add caption if we have one
-    if v.caption ~= nil then
+    if v.caption ~= nil and #v.caption > 0 then
       if pandoc.utils.type(v.caption[1]) == "Inline" then
         entry.caption = inlinesToString(pandoc.Inlines({v.caption[1]}))
       else

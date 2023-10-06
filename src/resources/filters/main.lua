@@ -24,6 +24,7 @@ import("./common/base64.lua")
 import("./common/citations.lua")
 import("./common/colors.lua")
 import("./common/collate.lua")
+import("./common/crossref.lua")
 import("./common/debug.lua")
 import("./common/error.lua")
 import("./common/figures.lua")
@@ -390,6 +391,7 @@ local quarto_crossref_filters = {
     crossref_figures(),
     equations(),
     crossref_theorems(),
+    crossref_callouts(),
   })},
 
   { name = "crossref-resolveRefs", filter = resolveRefs(),
