@@ -52,11 +52,6 @@ function server_shiny()
       if el.attr.classes:includes("python") and el.attr.classes:includes("cell-code") then
         table.insert(codeCells.cells, { classes = el.attr.classes, text = el.text })
       end
-
-      if el.attr.classes:includes("hidden") then
-        return nil
-      end
-
       return el
     end,
 
@@ -80,9 +75,8 @@ function server_shiny()
       file:write(quarto.json.encode(codeCells))
       file:close()
 
-      -- Convert the json file to an app.py by calling `shiny convert-cells`.
-      -- appOutfile = pandoc.path.split_extension(pandoc.path.filename(quarto.doc.output_file)) .. "-app.py"
-      appOutfile = pandoc.path.directory(quarto.doc.output_file) .. "/app.py"
+      -- Convert the json file to myfile-app.py by calling `shiny convert-cells`.
+      appOutfile = pandoc.path.split_extension(quarto.doc.input_file) .. "-app.py"
       callPythonShiny(
         { "cells-to-app", codeCellsOutfile, appOutfile }
       )
