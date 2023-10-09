@@ -6,13 +6,23 @@ function server_shiny()
     return {}
   end
 
+  -- get python exec
+  local pythonExec = param("shiny-python-exec", { "python" })
+
   -- Try calling `pandoc.pipe('shiny', ...)` and if it fails, print a message
   -- about installing shiny.
   local function callPythonShiny(args)
+    -- build command and args
+    local command = pythonExec[1]
+    tprepend(args, { "-m", "shiny" })
+    if #pythonExec > 1 then
+      tprepend(args, tslice(pythonExec, 2, #pythonExec))
+    end
+    
     local res
     local status, err = pcall(
       function()
-        res = pandoc.pipe("shiny", args, "")
+        res = pandoc.pipe(command, args, "")
       end
     )
 
@@ -39,20 +49,25 @@ function server_shiny()
   end
 
 
-
   local codeCells = {
     schema_version = 1,
+    setupCells = {},
     cells = {},
     html_file = ""
   }
 
   return {
-
-    CodeBlock = function(el)
-      if el.attr.classes:includes("python") and el.attr.classes:includes("cell-code") then
-        table.insert(codeCells.cells, { classes = el.attr.classes, text = el.text })
-      end
-      return el
+    Div = function(el)
+      local context = el.attr.attributes["context"]
+      local isSetup = context == "setup"
+      pandoc.walk_block(el, {
+        CodeBlock = function(el)
+          if el.attr.classes:includes("python") and el.attr.classes:includes("cell-code") then
+            local cells = isSetup and codeCells.setupCells or codeCells.cells
+            table.insert(cells, { classes = el.attr.classes, text = el.text })
+          end
+        end,
+      })
     end,
 
     Pandoc = function(doc)
