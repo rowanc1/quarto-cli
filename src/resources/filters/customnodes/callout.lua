@@ -101,7 +101,7 @@ _quarto.ast.add_handler({
       appearance = appearance,
       icon = icon,
       type = t,
-      attr = tbl.attr or pandoc.Attr(),
+      attr = tbl.attr,
     }
   end
 })
@@ -220,7 +220,6 @@ end
 
 -- an HTML callout div
 function calloutDiv(node)
-  node = decorate_callout_title_with_crossref(node)
   -- the first heading is the title
   local div = pandoc.Div({})
   local c = quarto.utils.as_blocks(node.content)
@@ -611,44 +610,6 @@ end, function(callout)
   return pandoc.BlockQuote(result)
 end)
 
-local function callout_title_prefix(callout, withDelimiter)
-  local category = crossref.categories.by_ref_type[refType(callout.attr.identifier)]
-  if category == nil then
-    fail("unknown callout prefix '" .. refType(callout.attr.identifier) .. "'")
-    return
-  end
-  
-  return titlePrefix(category.ref_type, category.name, callout.order, withDelimiter)
-end
-
-function decorate_callout_title_with_crossref(callout)
-  callout = ensure_custom(callout)
-  if not param("enable-crossref", true) then
-    -- don't decorate captions with crossrefs information if crossrefs are disabled
-    return callout
-  end
-  -- nil should never happen here, but the Lua analyzer doesn't know it
-  if callout == nil then
-    -- luacov: disable
-    internal_error()
-    -- luacov: enable
-    return
-  end
-  if not is_valid_ref_type(refType(callout.attr.identifier)) then
-    return callout
-  end
-  local title = callout.title.content
-
-  -- unlabeled callouts do not get a title prefix
-  local is_uncaptioned = not ((title ~= nil) and (#title > 0))
-  -- this is a hack but we need it to control styling downstream
-  callout.is_uncaptioned = is_uncaptioned
-  local title_prefix = callout_title_prefix(callout, not is_uncaptioned)
-  tprepend(title, title_prefix)
-
-  return callout
-end
-
 local function typst_function_call(name, params)
   local result = pandoc.Blocks({})
   result:insert(pandoc.RawInline("typst", "#" .. name .. "("))
@@ -703,18 +664,33 @@ end, function(callout)
     title = pandoc.Plain(displayName(callout.type))
   end
 
-  return typst_function_call("callout", { 
+  local typst_callout = typst_function_call("callout", { 
     { "body", as_typst_content(callout.content) },
     { "title", as_typst_content(title) },
     { "background_color", pandoc.RawInline("typst", background_color) },
     { "icon_color", pandoc.RawInline("typst", icon_color) },
     { "icon", pandoc.RawInline("typst", "" .. icon .. "()")}
   })
+
+  if callout.attr.identifier == "" then
+    return typst_callout
+  end
+
+  local category = crossref.categories.by_ref_type[refType(callout.attr.identifier)]
+  return make_typst_figure {
+    content = typst_callout,
+    caption_location = "top",
+    caption = pandoc.Plain(pandoc.Str("")),
+    kind = "quarto-callout-" .. callout.type,
+    supplement = category.name,
+    numbering = "1",
+    identifier = callout.attr.identifier
+  }
 end)
 
 function crossref_callouts()
   return {
-    Callout = function(callout, what)
+    Callout = function(callout)
       local type = refType(callout.attr.identifier)
       if type == nil or not is_valid_ref_type(type) then
         return nil
