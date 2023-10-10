@@ -101,7 +101,7 @@ _quarto.ast.add_handler({
       appearance = appearance,
       icon = icon,
       type = t,
-      attr = tbl.attr,
+      attr = tbl.attr or pandoc.Attr(),
     }
   end
 })
