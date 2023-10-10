@@ -29,7 +29,8 @@ end
 
 function ensure_custom(node)
   if pandoc.utils.type(node) == "Block" or pandoc.utils.type(node) == "Inline" then
-    return _quarto.ast.resolve_custom_data(node)
+    local result = _quarto.ast.resolve_custom_data(node)
+    return result or node -- it'll never be nil or false, but the lua analyzer doesn't know that
   end
   return node
 end
