@@ -430,7 +430,7 @@ function epubCallout(node)
   end
   attributes:insert("callout-style-" .. calloutAppearance)
 
-  local result = pandoc.Div({calloutBody}, pandoc.Attr(node.id or "", attributes))
+  local result = pandoc.Div({ calloutBody }, pandoc.Attr(node.attr.identifier or "", attributes))
   -- in revealjs or epub, if the leftover attr is non-trivial, 
   -- then we need to wrap the callout in a div (#5208, #6853)
   if node.attr.identifier ~= "" or #node.attr.classes > 0 or #node.attr.attributes > 0 then
@@ -441,10 +441,12 @@ function epubCallout(node)
 
 end
 
-function simpleCallout(node) 
+function simpleCallout(node)
+  node = decorate_callout_title_with_crossref(node)
   local contents = resolveCalloutContents(node, true)
   local callout = pandoc.BlockQuote(contents)
-  return pandoc.Div(callout, pandoc.Attr(node.id or ""))
+  local result = pandoc.Div(callout, pandoc.Attr(node.attr.identifier or ""))
+  return result
 end
 
 function resolveCalloutContents(node, require_title)
