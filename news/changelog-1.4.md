@@ -37,6 +37,7 @@
 - ([#6714](https://github.com/quarto-dev/quarto-cli/issues/6714)): Display title block for HTML when other (non-title/author/subtitle) metadata is present.
 - ([#6833](https://github.com/quarto-dev/quarto-cli/issues/6833)): Handle partially-specified aspect ratio, width, and height attributes in `video` shortcode.
 - ([#7137](https://github.com/quarto-dev/quarto-cli/discussions/7137)): Automatically set `rel="noopener"` when setting a target on external links
+- ([#7187](https://github.com/quarto-dev/quarto-cli/issues/7187)): Add `html-table-processing: none` to document- and project-level metadata to disable HTML table processing. Add `{html-table-processing="none"}` to a fenced div to disable HTML table processing for the elements in that div. Add `html-table-processing: none` on knitr or jupyter cell to disable HTML table processing for the cell output content.
 
 ## Appendix
 
@@ -62,7 +63,8 @@
 
 ## Docusaurus Format
 
-- ([#5152](https://github.com/quarto-dev/quarto-cli/issues/5152)): Support for `code-line-numbers` in Docusaurus output.
+- ([#5152](https://github.com/quarto-dev/quarto-cli/issues/5152)): Support for `code-line-numbers: true` in Docusaurus output.
+- ([#7201](https://github.com/quarto-dev/quarto-cli/issues/7201)): Support for [line highlighting](https://docusaurus.io/docs/markdown-features/code-blocks#highlighting-with-metadata-string) using `code-line-numbers`, as raw block attributes or code cell options.
 
 ## Beamer Format
 
@@ -92,6 +94,7 @@
 - ([#6903](https://github.com/quarto-dev/quarto-cli/issues/6903)): Don't display the `path` field for external paths provided in metadata files.
 - ([#6904](https://github.com/quarto-dev/quarto-cli/issues/6904)): Within feeds, remove `index.html` from urls which shouldn't include it.
 - ([#7088](https://github.com/quarto-dev/quarto-cli/issues/7088)): Don't emit extraneous link or whitespace in default listing template.
+- ([#7184](https://github.com/quarto-dev/quarto-cli/issues/7184)): Properly use the boostrap variable `pagination-active-color` for coloring pagination controls.
 
 ## Websites
 
@@ -113,6 +116,8 @@
 ## Website Search
 
 - ([#7105](https://github.com/quarto-dev/quarto-cli/issues/7105)): Improve search results by raising default limit and fixing and removing warning that would appear for Algolia when limit was more than 20.
+- ([#7150](https://github.com/quarto-dev/quarto-cli/issues/7150)): Search keyboard shortcut will not intercept keys directed at inputs.
+- ([#7117](https://github.com/quarto-dev/quarto-cli/issues/7117)): Ensure that search works properly in mobile layouts when not scrolled to top of page (don't close search when scroll occurs because of keyboard being shown).
 
 ## Books
 
@@ -134,6 +139,7 @@
 - Ability to cancel an executing preview from within the progress UI
 - Automatically render missing formats (e.g. PDF, MS Word) on the fly
 - ([#5882](https://github.com/quarto-dev/quarto-cli/issues/5882)): Disable browser cache using `Cache-Control` header config in the viewer redirect for PDF preview, correctly allowing a HTML preview later on same port.
+- Correct detection of Hugo project type from `hugo.toml` (in addition to already supported `config.toml`)
 
 ## Jupyter
 
@@ -200,6 +206,7 @@
 
 - ([#2551](https://github.com/quarto-dev/quarto-cli/issues/2551)): Support crossreferenceable figures without captions.
 - ([#6620](https://github.com/quarto-dev/quarto-cli/issues/6620)): Introduce `FloatRefTarget` AST nodes that generalize crossref targets to include figures, tables, and custom floating elements.
+- ([#7200](https://github.com/quarto-dev/quarto-cli/issues/7200)): Support Unicode in subref labels.
 
 ## Other Fixes and Improvements
 
@@ -232,3 +239,4 @@
 - ([#7013](https://github.com/quarto-dev/quarto-cli/issues/7013)): Improve error message when there is an issue finding or running R and add more verbosity in [verbose mode](https://quarto.org/docs/troubleshooting/#verbose-mode).
 - ([#7032](https://github.com/quarto-dev/quarto-cli/issues/7032)): `quarto` is now correctly working when installed in a folder with spaces in path.
 - ([#7131](https://github.com/quarto-dev/quarto-cli/issues/7131)): Fix typo in ISBN entry for JATS subarticle template (author: @jasonaris).
+- ([#3599](https://github.com/quarto-dev/quarto-cli/issues/3599), [#5870](https://github.com/quarto-dev/quarto-cli/issues/5870)): Fix hash issue causing unexpected render when `freeze` is activated on Windows but re-rendered on Linux (e.g. in Github Action).

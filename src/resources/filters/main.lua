@@ -152,6 +152,8 @@ import("./quarto-pre/table-colwidth.lua")
 import("./quarto-pre/table-rawhtml.lua")
 import("./quarto-pre/theorems.lua")
 
+import("./customnodes/panellayout.lua")
+
 import("./layout/html.lua")
 import("./layout/latex.lua")
 import("./layout/docx.lua")
@@ -172,6 +174,7 @@ import("./customnodes/theorem.lua")
 import("./layout/confluence.lua")
 import("./layout/ipynb.lua")
 import("./layout/typst.lua")
+import("./layout/hugo.lua")
 
 import("./quarto-init/metainit.lua")
 

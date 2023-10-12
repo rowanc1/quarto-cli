@@ -336,14 +336,18 @@ export function previewRenderRequest(
 
 export async function previewRenderRequestIsCompatible(
   request: PreviewRenderRequest,
-  flags: RenderFlags,
+  format?: string,
   project?: ProjectContext,
 ) {
   if (request.version === 1) {
     return true; // rstudio manages its own request compatibility state
   } else {
-    const format = await previewFormat(request.path, request.format, project);
-    return format === flags.to;
+    const reqFormat = await previewFormat(
+      request.path,
+      request.format,
+      project,
+    );
+    return reqFormat === format;
   }
 }
 
@@ -399,7 +403,7 @@ export function handleRenderResult(
   return finalOutput;
 }
 
-interface RenderForPreviewResult {
+export interface RenderForPreviewResult {
   file: string;
   format: Format;
   outputFile: string;
@@ -407,7 +411,7 @@ interface RenderForPreviewResult {
   resourceFiles: string[];
 }
 
-async function renderForPreview(
+export async function renderForPreview(
   file: string,
   services: RenderServices,
   flags: RenderFlags,
@@ -484,15 +488,16 @@ async function renderForPreview(
   };
 }
 
-interface ChangeHandler {
+export interface ChangeHandler {
   render: () => Promise<RenderForPreviewResult | undefined>;
 }
 
-function createChangeHandler(
+export function createChangeHandler(
   result: RenderForPreviewResult,
-  reloader: HttpDevServer,
+  reloader: { reloadClients: (reloadTarget?: string) => Promise<void> },
   render: (to?: string) => Promise<RenderForPreviewResult | undefined>,
   renderOnChange: boolean,
+  reloadFileFilter: (file: string) => boolean = () => true,
 ): ChangeHandler {
   const renderQueue = new PromiseQueue<RenderForPreviewResult | undefined>();
   let watcher: Watcher | undefined;
@@ -566,7 +571,7 @@ function createChangeHandler(
         : "";
 
       watches.push({
-        files: reloadFiles,
+        files: reloadFiles.filter(reloadFileFilter),
         handler: ld.debounce(async () => {
           await renderQueue.enqueue(async () => {
             await reloader.reloadClients(reloadTarget);
@@ -722,7 +727,7 @@ function htmlFileRequestHandlerOptions(
           prevReq &&
           existsSync(prevReq.path) &&
           normalizePath(prevReq.path) === normalizePath(inputFile) &&
-          await previewRenderRequestIsCompatible(prevReq, flags)
+          await previewRenderRequestIsCompatible(prevReq, flags.to)
         ) {
           // don't wait for the promise so the
           // caller gets an immediate reply

@@ -18,7 +18,7 @@ function server_shiny()
     if #pythonExec > 1 then
       tprepend(args, tslice(pythonExec, 2, #pythonExec))
     end
-    
+
     local res
     local status, err = pcall(
       function()
@@ -33,6 +33,7 @@ function server_shiny()
         table.concat(args, " ") ..
         "'. Please make sure the 'shiny' Python package is installed."
       )
+      os.exit(1)
     end
 
     return res
@@ -51,23 +52,63 @@ function server_shiny()
 
   local codeCells = {
     schema_version = 1,
-    setupCells = {},
     cells = {},
     html_file = ""
   }
 
   return {
-    Div = function(el)
-      local context = el.attr.attributes["context"]
-      local isSetup = context == "setup"
-      pandoc.walk_block(el, {
+    Div = function(divEl)
+      if not divEl.attr.classes:includes("cell") then
+        return el
+      end
+
+      -- Start the context as nil and then set it when we hit a relevant Python
+      -- code block. (We don't want to interfere with other types of code
+      -- blocks.)
+      local context = nil
+
+      local res = pandoc.walk_block(divEl, {
         CodeBlock = function(el)
           if el.attr.classes:includes("python") and el.attr.classes:includes("cell-code") then
-            local cells = isSetup and codeCells.setupCells or codeCells.cells
-            table.insert(cells, { classes = el.attr.classes, text = el.text })
+
+            context = divEl.attr.attributes["context"] or "default"
+
+            -- Translate the context names to ones that are used by the backend
+            -- which writes out the app file.
+            if context == "default" then
+              context = { "ui", "server" }
+            elseif context == "ui" then
+              context = { "ui" }
+            elseif context == "setup" then
+              context = { "ui", "server-setup" }
+            else
+              error(
+                'Invalid context: "' .. context ..
+                '". Valid context types are "default", "ui", and "setup".'
+              )
+            end
+
+            context = pandoc.List(context)
+
+            table.insert(
+              codeCells.cells,
+              { context = context, classes = el.attr.classes, text = el.text }
+            )
           end
         end,
+        Div = function(el)
+          -- In the HTML output, only include cell-output for ui cells.
+          -- `context` will be non-nil only if there's a CodeBlock in the
+          -- wrapper div which has gone through the CodeBlock function above.
+          if context ~= nil
+            and not context:includes("ui")
+            and el.attr.classes:includes("cell-output") then
+              return {}
+          end
+        end
       })
+
+      return res
     end,
 
     Pandoc = function(doc)
@@ -96,6 +137,7 @@ function server_shiny()
         { "cells-to-app", codeCellsOutfile, appOutfile }
       )
 
+      -- TODO: Add option to keep file for debugging.
       os.remove(codeCellsOutfile)
     end
 

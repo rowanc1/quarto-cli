@@ -5,8 +5,11 @@
  */
 
 import { dirname, join, relative } from "path/mod.ts";
+import { satisfies } from "semver/mod.ts";
 
 import { existsSync } from "fs/mod.ts";
+
+import { error } from "log/mod.ts";
 
 import * as ld from "../../core/lodash.ts";
 
@@ -96,8 +99,14 @@ import {
   kJupyterPercentScriptExtensions,
   markdownFromJupyterPercentScript,
 } from "./percent.ts";
-import { execProcess } from "../../core/process.ts";
-import { inputFilesDir, isServerShinyPython } from "../../core/render.ts";
+import {
+  inputFilesDir,
+  isServerShiny,
+  isServerShinyPython,
+} from "../../core/render.ts";
+import { jupyterCapabilities } from "../../core/jupyter/capabilities.ts";
+import { runExternalPreviewServer } from "../../preview/preview-server.ts";
+import { onCleanup } from "../../core/cleanup.ts";
 
 export const jupyterEngine: ExecutionEngine = {
   name: kJupyterEngine,
@@ -431,58 +440,94 @@ export const jupyterEngine: ExecutionEngine = {
   },
 
   run: async (options: RunOptions): Promise<void> => {
-    let running = false;
-    const [_dir, stem] = dirAndStem(options.input);
-    const appFile = `${stem}-app.py`;
-    const result = await execProcess(
-      {
-        cmd: [
-          "shiny",
-          "run",
-          appFile,
-          "--host",
-          options.host!,
-          "--port",
-          String(options.port!),
-        ],
-        cwd: dirname(options.input),
-      },
-      undefined,
-      undefined,
-      (output) => {
-        if (!running) {
-          const kLocalPreviewRegex =
-            /(http:\/\/(?:localhost|127\.0\.0\.1)\:\d+\/?[^\s]*)/;
-          if (kLocalPreviewRegex.test(output)) {
-            running = true;
-            if (options.onReady) {
-              options.onReady();
-            }
-          }
-        }
-        return output;
-      },
-    );
-    if (!result.success) {
+    // semver doesn't support 4th component
+    const asSemVer = (version: string) => {
+      const v = version.split(".");
+      if (v.length > 3) {
+        return `${v[0]}.${v[1]}.${v.slice(2).join("")}`;
+      } else {
+        return version;
+      }
+    };
+
+    // confirm required version of shiny
+    const kShinyVersion = ">=0.5.1.9002";
+    let shinyError: string | undefined;
+    const caps = await jupyterCapabilities();
+    if (!caps?.shiny) {
+      shinyError =
+        "The shiny package is required for documents with server: shiny";
+    } else if (!satisfies(asSemVer(caps.shiny), asSemVer(kShinyVersion))) {
+      shinyError =
+        `The shiny package version must be ${kShinyVersion} for documents with server: shiny`;
+    }
+    if (shinyError) {
+      shinyError +=
+        "\n\nInstall the development version of the shiny package with: \n\n" +
+        "pip install git+https://github.com/posit-dev/py-htmltools.git@html-text-doc#egg=htmltools\n" +
+        "pip install git+https://github.com/posit-dev/py-shiny.git@quarto-ext#egg=shiny\n";
+      error(shinyError);
       throw new Error();
     }
+
+    const [_dir, stem] = dirAndStem(options.input);
+    const appFile = `${stem}-app.py`;
+    const cmd = [
+      ...await pythonExec(),
+      "-m",
+      "shiny",
+      "run",
+      appFile,
+      "--host",
+      options.host!,
+      "--port",
+      String(options.port!),
+    ];
+    if (options.reload) {
+      cmd.push("--reload");
+      cmd.push(`--reload-includes`);
+      cmd.push(`*.py`);
+    }
+
+    // start server
+    const readyPattern = /(http:\/\/(?:localhost|127\.0\.0\.1)\:\d+\/?[^\s]*)/;
+    const server = runExternalPreviewServer({
+      cmd,
+      readyPattern,
+      cwd: dirname(options.input),
+    });
+    await server.start();
+
+    // stop the server onCleanup
+    onCleanup(async () => {
+      await server.stop();
+    });
+
+    // notify when ready
+    if (options.onReady) {
+      options.onReady();
+    }
+
+    // run the server
+    return server.serve();
   },
 
   postRender: async (files: RenderResultFile[], _context?: ProjectContext) => {
     // discover non _files dir resources for server: shiny and ammend app.py with them
-    files.filter((file) => isServerShinyPython(file.format)).forEach((file) => {
-      const [dir, stem] = dirAndStem(file.input);
-      const filesDir = join(dir, inputFilesDir(file.input));
-      const extraResources = file.resourceFiles
-        .filter((resource) => !resource.startsWith(filesDir))
-        .map((resource) => relative(dir, resource));
-      const appScript = join(dir, `${stem}-app.py`);
-      if (existsSync(appScript)) {
-        // TODO: extraResoures is an array of relative paths to resources
-        // that are NOT in the _files dir. these should be injected into
-        // the appropriate place in appScript
-      }
-    });
+    files.filter((file) => isServerShiny(file.format))
+      .forEach((file) => {
+        const [dir, stem] = dirAndStem(file.input);
+        const filesDir = join(dir, inputFilesDir(file.input));
+        const extraResources = file.resourceFiles
+          .filter((resource) => !resource.startsWith(filesDir))
+          .map((resource) => relative(dir, resource));
+        const appScript = join(dir, `${stem}-app.py`);
+        if (existsSync(appScript)) {
+          // TODO: extraResoures is an array of relative paths to resources
+          // that are NOT in the _files dir. these should be injected into
+          // the appropriate place in appScript
+        }
+      });
   },
 
   postprocess: (options: PostProcessOptions) => {
